@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0" />
+  <title>KLANG & WELLE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --acc-r: #E63329;
+      --acc-b: #1A3FBF;
+      --acc-y: #F0C419;
+    }
+    [data-theme="dark"] {
+      --bg:      #0D0D0D;
+      --fg:      #F0EDE6;
+      --fg2:     #666;
+      --border:  #2A2A2A;
+      --btn:     #1A1A1A;
+      --btn-h:   #252525;
+    }
+    [data-theme="light"] {
+      --bg:      #F4F2EC;
+      --fg:      #0D0D0D;
+      --fg2:     #888;
+      --border:  #C0BDB4;
+      --btn:     #E4E1D8;
+      --btn-h:   #D4D1C8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Space Grotesk', sans-serif;
+      height: 100dvh;
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: background .25s, color .25s;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: stretch;
+      border-bottom: 2px solid var(--fg);
+      height: 48px;
+      flex-shrink: 0;
+      background: var(--bg);
+      position: relative;
+      z-index: 20;
+      overflow: hidden; /* keep children from breaking layout */
+    }
+
+    .logo-block {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border-right: 2px solid var(--fg);
+      flex-shrink: 0;
+    }
+    .logo-mark {
+      width: 14px; height: 14px;
+      background: var(--acc-r);
+      flex-shrink: 0;
+    }
+    .logo-mark.rec { animation: spin 2s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .logo-text {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* nav fills rest of header, right-aligned, wraps gracefully */
+    nav {
+      display: flex;
+      align-items: stretch;
+      margin-left: auto;
+      overflow: hidden;
+    }
+
+    button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 0 10px;
+      min-width: 36px;
+      border: none;
+      border-left: 2px solid var(--fg);
+      background: var(--btn);
+      color: var(--fg);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    button:hover  { background: var(--btn-h); }
+    button:active { background: var(--fg); color: var(--bg); }
+
+    #startBtn.active { background: var(--acc-r); color: #fff; border-left-color: var(--acc-r); }
+    #startBtn.active:hover { background: #c42820; }
+
+    /* size pair — share one left border */
+    .size-pair {
+      display: flex;
+      align-items: stretch;
+      border-left: 2px solid var(--fg);
+      flex-shrink: 0;
+    }
+    .size-pair button {
+      border-left: none;
+      font-size: 14px;
+      padding: 0 9px;
+      min-width: 32px;
+    }
+    .size-pair button + button { border-left: 1px solid var(--border); }
+
+    /* ── CANVAS ── */
+    #wrap {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+      cursor: crosshair;
+    }
+    canvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+    }
+    #bg  { z-index: 0; }
+    #cvs { z-index: 1; }
+
+
+
+    /* bauhaus color bar */
+    .cbar {
+      position:absolute; top:0; left:0; right:0; height:3px;
+      display:flex; pointer-events:none; z-index:4;
+    }
+    .cbar span { flex:1; }
+    .cbar span:nth-child(1) { background: var(--acc-r); }
+    .cbar span:nth-child(2) { background: var(--acc-y); }
+    .cbar span:nth-child(3) { background: var(--acc-b); }
+
+    /* hint */
+    .hint {
+      position:absolute; top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      text-align:center; pointer-events:none; z-index:5;
+      transition: opacity .5s;
+      padding: 0 20px;
+      width: 100%;
+    }
+    .hint h2 {
+      font-weight:700; font-size:clamp(16px,4vw,36px);
+      letter-spacing:-.02em; text-transform:uppercase;
+      opacity:.12; line-height:1.15;
+    }
+    .hint p {
+      font-family:'IBM Plex Mono',monospace;
+      font-size:clamp(9px,1.8vw,11px);
+      letter-spacing:.12em; opacity:.08;
+      text-transform:uppercase; margin-top:8px;
+    }
+    .hint.hidden { opacity:0; }
+
+    /* ── FOOTER ── */
+    footer {
+      display: flex;
+      align-items: stretch;
+      border-top: 2px solid var(--fg);
+      height: 40px;
+      background: var(--bg);
+      flex-shrink: 0;
+      position: relative; z-index: 20;
+      overflow: hidden;
+    }
+
+    .fcell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 10px;
+      border-right: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .fcell:last-child { border-right: none; margin-left: auto; }
+
+    .mlabel {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: var(--fg2);
+      white-space: nowrap;
+    }
+
+    .pbar { width: 80px; height: 3px; background: var(--border); position: relative; flex-shrink:0; }
+    .ptrack { height:100%; width:50%; background:var(--fg); transition:width .08s; position:relative; }
+    .pthumb { position:absolute; right:-3px; top:50%; transform:translateY(-50%); width:6px; height:6px; background:var(--acc-r); }
+
+    .vbar { width: 40px; height: 3px; background: var(--border); overflow:hidden; flex-shrink:0; }
+    .vfill { height:100%; width:0; background:var(--acc-y); transition:width .08s; }
+
+    #status {
+      font-family:'IBM Plex Mono',monospace;
+      font-size:9px; letter-spacing:.08em; text-transform:uppercase;
+      color:var(--fg2); white-space:nowrap;
+    }
+
+    /* visit counter */
+    .visits { display:flex; align-items:center; gap:10px; }
+    .vtag {
+      font-family:'IBM Plex Mono',monospace;
+      font-size:8px; font-weight:600;
+      letter-spacing:.12em; text-transform:uppercase;
+      padding:1px 5px; border:1px solid var(--border); color:var(--fg2);
+    }
+    .vtag.li { border-color:var(--acc-b); color:var(--acc-b); }
+    .vcount {
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px; color:var(--fg);
+      font-variant-numeric:tabular-nums;
+    }
+
+    /* ── RESPONSIVE: hide meters at narrow widths ── */
+    @media (max-width:480px) {
+      .logo-text { letter-spacing:.08em; font-size:10px; }
+      .hide-sm { display:none !important; }
+      button { padding:0 8px; min-width:30px; font-size:9px; }
+    }
+    @media (max-width:360px) {
+      .logo-text { display:none; }
+      .logo-block { padding:0 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-block">
+    <div class="logo-mark" id="logoDot"></div>
+    <span class="logo-text">Klang &amp; Welle</span>
+  </div>
+  <nav>
+    <button id="clearBtn">⌫ <span class="hide-sm">Löschen</span></button>
+    <div class="size-pair">
+      <button id="sizeDown">−</button>
+      <button id="sizeUp">+</button>
+    </div>
+    <button id="startBtn">
+      <svg id="micIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+        <rect x="9" y="2" width="6" height="13" rx="0"/>
+        <path d="M5 10a7 7 0 0 0 14 0"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+        <line x1="8" y1="22" x2="16" y2="22"/>
+      </svg>
+      <span id="btnLabel" class="hide-sm">Mikrofon</span>
+    </button>
+    <button id="themeBtn" title="Hell/Dunkel">☾</button>
+  </nav>
+</header>
+
+<div id="wrap">
+  <div class="cbar"><span></span><span></span><span></span></div>
+
+  <canvas id="bg"></canvas>
+  <canvas id="cvs"></canvas>
+  <div class="hint" id="hint">
+    <h2>Maus bewegen<br>und singen</h2>
+    <p>Hoch = warm · Tief = kalt · Laut = Kurve</p>
+  </div>
+</div>
+
+<footer>
+  <div class="fcell hide-sm">
+    <span class="mlabel">Ton</span>
+    <div class="pbar"><div class="ptrack" id="pt"><div class="pthumb"></div></div></div>
+  </div>
+  <div class="fcell hide-sm">
+    <span class="mlabel">Vol</span>
+    <div class="vbar"><div class="vfill" id="vf"></div></div>
+  </div>
+  <div class="fcell"><span id="status">Bereit</span></div>
+  <a href="mailto:domingadelsol@gmail.com" class="fcell hide-sm" style="margin-left:auto;text-decoration:none;color:var(--fg2);font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;">domingadelsol@gmail.com</a>
+  <div class="fcell">
+    <div class="visits">
+      <span class="vtag li">Li</span><span class="vcount" id="cLI">…</span>
+      <span class="vtag">An</span><span class="vcount" id="cOth">…</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ── refs ── */
+const bgC  = document.getElementById('bg');
+const cvs  = document.getElementById('cvs');
+const bgX  = bgC.getContext('2d');
+const ctx  = cvs.getContext('2d');
+const wrap = document.getElementById('wrap');
+
+/* ── theme ── */
+let dark = true;
+document.getElementById('themeBtn').addEventListener('click', () => {
+  dark = !dark;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('themeBtn').textContent = dark ? '☾' : '○';
+  drawBg();
+});
+
+/* ── state ── */
+let audioCtx, analyser, source, isRec = false;
+let t = 0, hasDrawn = false;
+let smP = 0.5, smV = 0, scale = 1;
+let cx = -1, cy = -1, px = -1, py = -1;
+let touchMoved = false;
+let waveY = -1, waveDir = 1;
+
+/* ── resize ── */
+function drawBg() {
+  const c = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  bgX.fillStyle = c || '#0D0D0D';
+  bgX.fillRect(0, 0, bgC.width, bgC.height);
+}
+function resize() {
+  bgC.width = cvs.width = wrap.offsetWidth;
+  bgC.height = cvs.height = wrap.offsetHeight;
+  drawBg();
+}
+resize();
+window.addEventListener('resize', resize);
+
+/* ── color ── */
+function pRGB(p) {
+  const w=[[226,51,41],[240,150,30],[220,60,100],[255,190,40],[200,50,70]];
+  const c=[[26,63,191],[20,160,190],[80,30,180],[30,130,120],[50,60,200]];
+  const i = Math.floor(Math.random()*5);
+  let r,g,b;
+  if (p>.5) {
+    const k=(p-.5)*2,a=w[i];
+    r=Math.round(a[0]*k+160*(1-k));
+    g=Math.round(a[1]*k+100*(1-k));
+    b=Math.round(a[2]*k+ 80*(1-k));
+  } else {
+    const k=p*2,a=c[i];
+    r=Math.round(a[0]*k+ 20*(1-k));
+    g=Math.round(a[1]*k+ 60*(1-k));
+    b=Math.round(a[2]*k+200*(1-k));
+  }
+  return [r,g,b];
+}
+
+/* ── mouse trail: straight → wavy with volume ── */
+function seg(x0,y0,x1,y1) {
+  const dx=x1-x0, dy=y1-y0, d=Math.sqrt(dx*dx+dy*dy);
+  if (d<1) return;
+  if (!hasDrawn) { hasDrawn=true; document.getElementById('hint').classList.add('hidden'); }
+
+  const nx=-dy/d, ny=dx/d;
+  const amp  = smV*(55+smP*65)*scale;
+  const freq = 0.06+smP*0.08;
+  const steps= Math.max(2,Math.ceil(d/2));
+
+  let r,g,b;
+  if (isRec && smV>.02) { [r,g,b]=pRGB(smP); }
+  else { [r,g,b] = dark ? [210,205,195] : [20,20,20]; }
+
+  ctx.beginPath();
+  ctx.strokeStyle=`rgba(${r},${g},${b},0.80)`;
+  ctx.lineWidth=(1+smV*2)*scale;
+  ctx.lineCap='square'; ctx.lineJoin='miter';
+  for (let s=0;s<=steps;s++) {
+    const q=s/steps, ex=x0+dx*q, ey=y0+dy*q, dist=d*q;
+    const w=amp>0 ? Math.sin(dist*freq+t*.05)*amp+Math.sin(dist*freq*2.4+t*.03)*amp*.28 : 0;
+    s===0 ? ctx.moveTo(ex+nx*w,ey+ny*w) : ctx.lineTo(ex+nx*w,ey+ny*w);
+  }
+  ctx.stroke();
+}
+
+/* ── autonomous voice wave ── */
+function voiceWave() {
+  if (smV<.015) return;
+  if (!hasDrawn) { hasDrawn=true; document.getElementById('hint').classList.add('hidden'); }
+  const W=cvs.width, H=cvs.height;
+  if (waveY<0) waveY=H*.5;
+  waveY += waveDir*(1+smV*2.8);
+  if (waveY>H+80){waveY=H+80;waveDir=-1;}
+  if (waveY<-80){waveY=-80;waveDir=1;}
+  const [r,g,b]=pRGB(smP);
+  const amp=(12+smV*155+smP*55)*scale;
+  const freq=(0.004+smP*.005)/scale;
+  const layers=Math.floor(2+smV*3);
+  for (let li=0;li<layers;li++) {
+    const yo=(li-layers/2)*6*scale, ph=t*.036+li*1.15;
+    ctx.beginPath();
+    ctx.strokeStyle=`rgba(${r},${g},${b},${(0.25+smV*.52)*(1-li*.18)})`;
+    ctx.lineWidth=(0.7+smV*3.2)*scale*(1-li*.18);
+    ctx.lineCap='square'; ctx.lineJoin='miter';
+    for (let x=0;x<=W;x+=3) {
+      const y=waveY+yo+Math.sin(x*freq+ph)*amp+Math.sin(x*freq*2.5+ph*.6)*amp*.28;
+      x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+}
+
+/* ── RAF loop ── */
+(function loop(){
+  requestAnimationFrame(loop); t++;
+  if (isRec && analyser) {
+    const bl=analyser.frequencyBinCount, d=new Uint8Array(bl);
+    analyser.getByteFrequencyData(d);
+    let s=0; for(let i=0;i<bl;i++) s+=d[i];
+    const rv=Math.min(1,(s/bl)/75);
+    let wf=0,ta=0; for(let i=0;i<bl;i++){wf+=d[i]*i;ta+=d[i];}
+    const rp=Math.min(1,(ta>0?wf/ta:0)/(bl*.38));
+    smP=smP*.72+rp*.28; smV=smV*.62+rv*.38;
+    document.getElementById('pt').style.width=Math.round(smP*100)+'%';
+    document.getElementById('vf').style.width=Math.round(smV*100)+'%';
+    voiceWave();
+  } else { smV*=.88; }
+  /* only draw mouse trail on non-touch devices */
+  if (!touchMoved && cx>=0&&px>=0&&(cx!==px||cy!==py)) seg(px,py,cx,cy);
+  px=cx; py=cy;
+})();
+
+/* ── pointer ── */
+function pos(e){
+  const r=cvs.getBoundingClientRect(), s=e.touches?e.touches[0]:e;
+  return {x:s.clientX-r.left,y:s.clientY-r.top};
+}
+cvs.addEventListener('mousemove',e=>{const p=pos(e);cx=p.x;cy=p.y;});
+cvs.addEventListener('mouseleave',()=>{px=-1;py=-1;cx=-1;cy=-1;});
+cvs.addEventListener('mouseenter',e=>{const p=pos(e);cx=p.x;cy=p.y;px=p.x;py=p.y;});
+/* ── touch: tap = dot, drag = nothing (dots only on tap/release) ── */
+cvs.addEventListener('touchstart', e => {
+  e.preventDefault();
+  touchMoved = false;
+  const p = pos(e); cx = p.x; cy = p.y; px = p.x; py = p.y;
+}, { passive: false });
+
+cvs.addEventListener('touchmove', e => {
+  e.preventDefault();
+  touchMoved = true;
+  /* update position silently — no drawing on drag */
+  const p = pos(e); cx = p.x; cy = p.y;
+}, { passive: false });
+
+cvs.addEventListener('touchend', e => {
+  if (!touchMoved) {
+    /* pure tap → draw a dot */
+    drawDot(cx, cy);
+  }
+  px = -1; py = -1; cx = -1; cy = -1; touchMoved = false;
+});
+
+function drawDot(x, y) {
+  if (!hasDrawn) { hasDrawn = true; document.getElementById('hint').classList.add('hidden'); }
+  let r, g, b;
+  if (isRec && smV > .02) { [r,g,b] = pRGB(smP); }
+  else { [r,g,b] = dark ? [210,205,195] : [20,20,20]; }
+  /* radius grows with volume when mic is on */
+  const radius = (4 + smV * 18) * scale;
+  const alpha  = 0.75 + smV * 0.2;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+  ctx.fill();
+  /* bauhaus: add a small square outline around the dot */
+  const sq = radius * 1.8;
+  ctx.strokeStyle = `rgba(${r},${g},${b},0.25)`;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x - sq/2, y - sq/2, sq, sq);
+}
+
+/* ── size ── */
+document.getElementById('sizeUp').addEventListener('click',  ()=>{ scale=Math.min(3,+(scale+.25).toFixed(2)); });
+document.getElementById('sizeDown').addEventListener('click', ()=>{ scale=Math.max(.25,+(scale-.25).toFixed(2)); });
+
+/* ── mic ── */
+const MIC_ON ='<rect x="9" y="2" width="6" height="13" rx="0"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>';
+const MIC_OFF='<line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>';
+
+document.getElementById('startBtn').addEventListener('click', async ()=>{
+  const btn=document.getElementById('startBtn');
+  const lbl=document.getElementById('btnLabel');
+  const ic =document.getElementById('micIcon');
+  const dot=document.getElementById('logoDot');
+  const st =document.getElementById('status');
+  if (isRec) {
+    isRec=false;
+    if(source)source.disconnect(); if(audioCtx)audioCtx.close();
+    btn.classList.remove('active'); dot.classList.remove('rec');
+    lbl.textContent='Mikrofon'; ic.innerHTML=MIC_ON; st.textContent='Bereit';
+    document.getElementById('pt').style.width='50%';
+    document.getElementById('vf').style.width='0%';
+    return;
+  }
+  try {
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    analyser=audioCtx.createAnalyser(); analyser.fftSize=2048; analyser.smoothingTimeConstant=.78;
+    source=audioCtx.createMediaStreamSource(stream); source.connect(analyser);
+    isRec=true; btn.classList.add('active'); dot.classList.add('rec');
+    lbl.textContent='Stop'; ic.innerHTML=MIC_OFF; st.textContent='Singe oder sprich …';
+  } catch(e){ document.getElementById('status').textContent='Kein Mikrofonzugriff'; }
+});
+
+/* ── clear ── */
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+  hasDrawn=false; waveY=-1;
+  document.getElementById('hint').classList.remove('hidden');
+});
+
+/* ── visit counter via countapi.mileshilliard.com ── */
+(async ()=>{
+  const BASE = 'https://countapi.mileshilliard.com/api/v1';
+  const K_LI  = 'klang-welle-visits-linkedin-v1';
+  const K_OTH = 'klang-welle-visits-other-v1';
+  const elLI  = document.getElementById('cLI');
+  const elOth = document.getElementById('cOth');
+
+  async function hit(key){
+    try { const r=await fetch(`${BASE}/hit/${key}`); const d=await r.json(); return d.value??'—'; }
+    catch { return '—'; }
+  }
+  async function get(key){
+    try { const r=await fetch(`${BASE}/get/${key}`); const d=await r.json(); return d.value??'—'; }
+    catch { return '—'; }
+  }
+
+  const isLI = document.referrer.includes('linkedin.com');
+
+  if (isLI) {
+    const [vLI, vOth] = await Promise.all([hit(K_LI), get(K_OTH)]);
+    elLI.textContent  = (+vLI ).toLocaleString?.() ?? vLI;
+    elOth.textContent = (+vOth).toLocaleString?.() ?? vOth;
+  } else {
+    const [vOth, vLI] = await Promise.all([hit(K_OTH), get(K_LI)]);
+    elOth.textContent = (+vOth).toLocaleString?.() ?? vOth;
+    elLI.textContent  = (+vLI ).toLocaleString?.() ?? vLI;
+  }
+})();
+</script>
+</body>
+</html>
