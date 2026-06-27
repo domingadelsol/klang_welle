@@ -328,7 +328,6 @@ let t = 0, hasDrawn = false;
 let smP = 0.5, smV = 0, scale = 1;
 let cx = -1, cy = -1, px = -1, py = -1;
 let touchMoved = false;
-let waveY = -1, waveDir = 1;
 
 /* ── resize ── */
 function drawBg() {
@@ -344,24 +343,23 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-/* ── color ── */
+/* ── color: pitch maps to rainbow hue ── */
+let hue = 0; /* persistent hue that shifts with each sound change */
+let lastPitchBucket = -1;
+
 function pRGB(p) {
-  const w=[[226,51,41],[240,150,30],[220,60,100],[255,190,40],[200,50,70]];
-  const c=[[26,63,191],[20,160,190],[80,30,180],[30,130,120],[50,60,200]];
-  const i = Math.floor(Math.random()*5);
-  let r,g,b;
-  if (p>.5) {
-    const k=(p-.5)*2,a=w[i];
-    r=Math.round(a[0]*k+160*(1-k));
-    g=Math.round(a[1]*k+100*(1-k));
-    b=Math.round(a[2]*k+ 80*(1-k));
-  } else {
-    const k=p*2,a=c[i];
-    r=Math.round(a[0]*k+ 20*(1-k));
-    g=Math.round(a[1]*k+ 60*(1-k));
-    b=Math.round(a[2]*k+200*(1-k));
-  }
-  return [r,g,b];
+  /* map pitch 0-1 across the full rainbow: 0=red, 0.16=orange, 0.33=yellow,
+     0.5=green, 0.66=cyan, 0.83=blue, 1=violet */
+  const targetHue = p * 300; /* 0-300 covers red→violet without looping back to red */
+  /* smooth hue toward target so transitions feel musical, not jumpy */
+  const diff = targetHue - hue;
+  hue += diff * 0.08;
+  const h = hue, s = 85, l = 58;
+  /* HSL to RGB */
+  const a = s/100, ll = l/100;
+  const k = n => (n + h/30) % 12;
+  const f = n => ll - a*Math.min(ll,1-ll)*Math.max(-1,Math.min(k(n)-3,9-k(n),1));
+  return [Math.round(f(0)*255), Math.round(f(8)*255), Math.round(f(4)*255)];
 }
 
 /* ── mouse trail: straight → wavy with volume ── */
@@ -391,32 +389,7 @@ function seg(x0,y0,x1,y1) {
   ctx.stroke();
 }
 
-/* ── autonomous voice wave ── */
-function voiceWave() {
-  if (smV<.015) return;
-  if (!hasDrawn) { hasDrawn=true; document.getElementById('hint').classList.add('hidden'); }
-  const W=cvs.width, H=cvs.height;
-  if (waveY<0) waveY=H*.5;
-  waveY += waveDir*(1+smV*2.8);
-  if (waveY>H+80){waveY=H+80;waveDir=-1;}
-  if (waveY<-80){waveY=-80;waveDir=1;}
-  const [r,g,b]=pRGB(smP);
-  const amp=(12+smV*155+smP*55)*scale;
-  const freq=(0.004+smP*.005)/scale;
-  const layers=Math.floor(2+smV*3);
-  for (let li=0;li<layers;li++) {
-    const yo=(li-layers/2)*6*scale, ph=t*.036+li*1.15;
-    ctx.beginPath();
-    ctx.strokeStyle=`rgba(${r},${g},${b},${(0.25+smV*.52)*(1-li*.18)})`;
-    ctx.lineWidth=(0.7+smV*3.2)*scale*(1-li*.18);
-    ctx.lineCap='square'; ctx.lineJoin='miter';
-    for (let x=0;x<=W;x+=3) {
-      const y=waveY+yo+Math.sin(x*freq+ph)*amp+Math.sin(x*freq*2.5+ph*.6)*amp*.28;
-      x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    }
-    ctx.stroke();
-  }
-}
+
 
 /* ── RAF loop ── */
 (function loop(){
@@ -431,7 +404,7 @@ function voiceWave() {
     smP=smP*.72+rp*.28; smV=smV*.62+rv*.38;
     document.getElementById('pt').style.width=Math.round(smP*100)+'%';
     document.getElementById('vf').style.width=Math.round(smV*100)+'%';
-    voiceWave();
+
   } else { smV*=.88; }
   /* only draw mouse trail on non-touch devices */
   if (!touchMoved && cx>=0&&px>=0&&(cx!==px||cy!==py)) seg(px,py,cx,cy);
@@ -523,7 +496,7 @@ document.getElementById('startBtn').addEventListener('click', async ()=>{
 /* ── clear ── */
 document.getElementById('clearBtn').addEventListener('click',()=>{
   ctx.clearRect(0,0,cvs.width,cvs.height);
-  hasDrawn=false; waveY=-1;
+  hasDrawn=false;
   document.getElementById('hint').classList.remove('hidden');
 });
 
